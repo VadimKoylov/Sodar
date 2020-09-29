@@ -26,8 +26,10 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     if (!RegisterClass(&wcex))
         return 0;
 
-    HWND  hWnd = CreateWindow(wcex.lpszClassName, MainWindow, WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, NULL, NULL, hInstance, NULL);
+    HMENU hMenu = LoadMenu(NULL, MAKEINTRESOURCE(IDC_WINDOWSPROJECT1));
+    HWND  hWnd = CreateWindow(wcex.lpszClassName, MainWindow, WS_OVERLAPPEDWINDOW | WS_SIZEBOX,
+        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.1), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.1),
+        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.8), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.8), NULL, hMenu, hInstance, NULL);
 
     if (hWnd == NULL)
         return 0;
@@ -53,24 +55,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     case WM_CREATE:
     {
-        HMENU hMenuBar = CreateMenu();
-        HMENU hView = CreateMenu();
-        HMENU hFile = CreateMenu();
-        HMENU hSettings = CreateMenu();
-        HMENU hFaks = CreateMenu();
-        HMENU hVeter = CreateMenu();
-
-        AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hView, "Вид");
-        AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hFile, "Файл");
-        AppendMenu(hMenuBar, MF_POPUP, (UINT_PTR)hSettings, "Настройки");
-
-        AppendMenu(hView, MF_STRING, (UINT_PTR)hFaks, "Факс-записи");
-        AppendMenu(hView, MF_STRING, (UINT_PTR)hVeter, "Ветровые данные");
-
-        SetMenu(hWnd, hMenuBar);
+        EnableMenuItem(GetMenu(hWnd), IDM_FAX, MF_DISABLED);
 
         break;
     }
+
+    case WM_COMMAND:
+    {
+        switch (LOWORD(wParam))
+        {
+        case IDM_WIND:
+        {
+            int idWind = 1;
+            SetWindowLong(hWnd, GWL_USERDATA, idWind);
+            InvalidateRect(hWnd, NULL, true);
+        }
+        }
+    }
+
+ 
 
     case WM_DESTROY:
         if (hWnd == FindWindow(ClassName, MainWindow))
