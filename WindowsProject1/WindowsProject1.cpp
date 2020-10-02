@@ -56,7 +56,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
     {
         EnableMenuItem(GetMenu(hWnd), IDM_FAX, MF_DISABLED);
-
+        SetWindowLong(hWnd, GWL_USERDATA, 0);
         break;
     }
 
@@ -66,13 +66,64 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
         case IDM_WIND:
         {
-            int idWind = 1;
-            SetWindowLong(hWnd, GWL_USERDATA, idWind);
+            SetWindowLong(hWnd, GWL_USERDATA, 1);
             InvalidateRect(hWnd, NULL, true);
+            EnableMenuItem(GetMenu(hWnd), IDM_FAX, MF_ENABLED);
+            EnableMenuItem(GetMenu(hWnd), IDM_WIND, MF_DISABLED);
+            break;
+        }
+        case IDM_FAX:
+        {
+            SetWindowLong(hWnd, GWL_USERDATA, 0);
+            InvalidateRect(hWnd, NULL, true);
+            EnableMenuItem(GetMenu(hWnd), IDM_FAX, MF_DISABLED);
+            EnableMenuItem(GetMenu(hWnd), IDM_WIND, MF_ENABLED);
+            break;
         }
         }
+        break;
     }
 
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+        RECT rc1, rc2, rc3;
+        RECT sizeWnd;
+
+        GetClientRect(hWnd, &sizeWnd);
+
+        switch (GetWindowLong(hWnd, GWL_USERDATA))
+        {
+        case 0:
+        {
+            rc1.left = sizeWnd.right * 0.1;
+            rc1.right = sizeWnd.right * 0.99;
+            rc1.top = sizeWnd.bottom * 0.01;
+            rc1.bottom = sizeWnd.bottom / 3;
+
+            rc2.left = sizeWnd.right * 0.1;
+            rc2.right = sizeWnd.right * 0.99;
+            rc2.top = sizeWnd.bottom * 0.01;
+            rc2.bottom = sizeWnd.bottom / 3;
+
+            rc3.left = sizeWnd.right * 0.1;
+            rc3.right = sizeWnd.right * 0.99;
+            rc3.top = sizeWnd.bottom * 0.01;
+            rc3.bottom = sizeWnd.bottom / 3;
+
+            Rectangle(hdc, rc1.left, rc1.top, rc1.right, rc1.bottom);
+        }
+
+        case 1:
+        {
+
+        }
+        }
+        
+        EndPaint(hWnd, &ps);
+        break;
+    }
  
 
     case WM_DESTROY:
