@@ -99,20 +99,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             rc1.left = sizeWnd.right * 0.1;
             rc1.right = sizeWnd.right * 0.99;
-            rc1.top = sizeWnd.bottom * 0.01;
-            rc1.bottom = sizeWnd.bottom / 3;
+            rc1.top = sizeWnd.bottom * 0.0185;
+            rc1.bottom = sizeWnd.bottom * 0.3148;
 
             rc2.left = sizeWnd.right * 0.1;
             rc2.right = sizeWnd.right * 0.99;
-            rc2.top = sizeWnd.bottom * 0.01;
-            rc2.bottom = sizeWnd.bottom / 3;
+            rc2.top = sizeWnd.bottom * 0.3333;
+            rc2.bottom = sizeWnd.bottom * 0.6296;
 
             rc3.left = sizeWnd.right * 0.1;
             rc3.right = sizeWnd.right * 0.99;
-            rc3.top = sizeWnd.bottom * 0.01;
-            rc3.bottom = sizeWnd.bottom / 3;
+            rc3.top = sizeWnd.bottom * 0.6481;
+            rc3.bottom = sizeWnd.bottom * 0.9444;
 
             Rectangle(hdc, rc1.left, rc1.top, rc1.right, rc1.bottom);
+            Rectangle(hdc, rc2.left, rc2.top, rc2.right, rc2.bottom);
+            Rectangle(hdc, rc3.left, rc3.top, rc3.right, rc3.bottom);
         }
 
         case 1:
@@ -122,6 +124,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         
         EndPaint(hWnd, &ps);
+        break;
+    }
+
+    case WM_SIZE:
+    {
+        InvalidateRect(hWnd, NULL, true);
         break;
     }
  
