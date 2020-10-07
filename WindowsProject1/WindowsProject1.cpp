@@ -56,8 +56,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
     {
         EnableMenuItem(GetMenu(hWnd), IDM_FAX, MF_DISABLED);
-        SetWindowLong(hWnd, GWL_USERDATA, 0);
-        break;
+        //SetWindowLong(hWnd, GWL_USERDATA, 0);
+        return 0;
     }
 
     case WM_COMMAND:
@@ -81,7 +81,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             break;
         }
         }
-        break;
+        return 0;
     }
 
     case WM_PAINT:
@@ -93,9 +93,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         GetClientRect(hWnd, &sizeWnd);
 
-        switch (GetWindowLong(hWnd, GWL_USERDATA))
-        {
-        case 0:
+        if (GetWindowLong(hWnd, GWL_USERDATA) == 0)
         {
             rc1.left = sizeWnd.right * 0.1;
             rc1.right = sizeWnd.right * 0.99;
@@ -112,32 +110,49 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             rc3.top = sizeWnd.bottom * 0.6481;
             rc3.bottom = sizeWnd.bottom * 0.9444;
 
+            Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
             Rectangle(hdc, rc1.left, rc1.top, rc1.right, rc1.bottom);
             Rectangle(hdc, rc2.left, rc2.top, rc2.right, rc2.bottom);
             Rectangle(hdc, rc3.left, rc3.top, rc3.right, rc3.bottom);
         }
 
-        case 1:
+        else
         {
+            rc1.left = sizeWnd.right * 0.0025;
+            rc1.right = sizeWnd.right * 0.7131;
+            rc1.top = sizeWnd.top;
+            rc1.bottom = sizeWnd.bottom * 0.9975;
 
-        }
+            rc2.left = sizeWnd.right * 0.7155;
+            rc2.right = sizeWnd.right * 0.9975;
+            rc2.top = sizeWnd.top;
+            rc2.bottom = sizeWnd.bottom * 0.7308;
+
+            rc3.left = sizeWnd.right * 0.7155;
+            rc3.right = sizeWnd.right * 0.9975;
+            rc3.top = sizeWnd.bottom * 0.7333;
+            rc3.bottom = sizeWnd.bottom * 0.9975;
+
+            Rectangle(hdc, rc1.left, rc1.top, rc1.right, rc1.bottom);
+            Rectangle(hdc, rc2.left, rc2.top, rc2.right, rc2.bottom);
+            Rectangle(hdc, rc3.left, rc3.top, rc3.right, rc3.bottom);
         }
         
         EndPaint(hWnd, &ps);
-        break;
+        return 0;
     }
 
     case WM_SIZE:
     {
         InvalidateRect(hWnd, NULL, true);
-        break;
+        return 0;
     }
  
 
     case WM_DESTROY:
         if (hWnd == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
-        break;
+        return 0;
     }
 
     return DefWindowProc(hWnd, message, wParam, lParam);
