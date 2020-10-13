@@ -27,14 +27,30 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
         return 0;
 
     HMENU hMenu = LoadMenu(NULL, MAKEINTRESOURCE(IDC_WINDOWSPROJECT1));
-    HWND  hWnd = CreateWindow(wcex.lpszClassName, MainWindow, WS_OVERLAPPEDWINDOW | WS_SIZEBOX,
+
+    HWND  hWnd = CreateWindow(wcex.lpszClassName, MainWindow, WS_OVERLAPPEDWINDOW | WS_MAXIMIZE,
         (int)(GetSystemMetrics(SM_CXSCREEN) * 0.1), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.1),
         (int)(GetSystemMetrics(SM_CXSCREEN) * 0.8), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.8), NULL, hMenu, hInstance, NULL);
+
+    HWND hChild1 = CreateWindow(wcex.lpszClassName, "", WS_CHILDWINDOW,
+        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.1), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.00741),
+        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.89), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.280556), hWnd, NULL, hInstance, NULL);
+
+    HWND hChild2 = CreateWindow(wcex.lpszClassName, "", WS_CHILDWINDOW,
+        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.1), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.299074),
+        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.89), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.280556), hWnd, NULL, hInstance, NULL);
+
+    HWND hChild3 = CreateWindow(wcex.lpszClassName, "", WS_CHILDWINDOW,
+        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.1), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.588889),
+        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.89), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.280556), hWnd, NULL, hInstance, NULL);
 
     if (hWnd == NULL)
         return 0;
 
     ShowWindow(hWnd, nCmdShow);
+    ShowWindow(hChild1, nCmdShow);
+    ShowWindow(hChild2, nCmdShow);
+    ShowWindow(hChild3, nCmdShow);
 
     MSG msg;
 
@@ -111,9 +127,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             rc3.bottom = sizeWnd.bottom * 0.9444;
 
             Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
-            Rectangle(hdc, rc1.left, rc1.top, rc1.right, rc1.bottom);
-            Rectangle(hdc, rc2.left, rc2.top, rc2.right, rc2.bottom);
-            Rectangle(hdc, rc3.left, rc3.top, rc3.right, rc3.bottom);
+            //Rectangle(hdc, rc1.left, rc1.top, rc1.right, rc1.bottom);
+            //Rectangle(hdc, rc2.left, rc2.top, rc2.right, rc2.bottom);
+            //Rectangle(hdc, rc3.left, rc3.top, rc3.right, rc3.bottom);
         }
 
         else
