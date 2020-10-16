@@ -1,11 +1,21 @@
 ﻿#include "framework.h"
 #include "WindowsProject1.h"
 
-#define ClassName "ClassName"
-#define MainWindow "MainWindow"
+#define ClassName "MainWindow"
+#define MainWindow "SODAR"
+#define ClassNameChild1 "ChildWindow1"
+#define ClassNameChild2 "ChildWindow2"
+#define ClassNameChild3 "ChildWindow3"
 
 HINSTANCE hInst;								// текущий экземпляр
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK	WndChild1(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK	WndChild2(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK	WndChild3(HWND, UINT, WPARAM, LPARAM);
+
+HWND hChild1;
+HWND hChild2;
+HWND hChild3;
 
 int APIENTRY WinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -26,31 +36,75 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     if (!RegisterClass(&wcex))
         return 0;
 
+
+
+
     HMENU hMenu = LoadMenu(NULL, MAKEINTRESOURCE(IDC_WINDOWSPROJECT1));
 
     HWND  hWnd = CreateWindow(wcex.lpszClassName, MainWindow, WS_OVERLAPPEDWINDOW | WS_MAXIMIZE,
         (int)(GetSystemMetrics(SM_CXSCREEN) * 0.1), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.1),
         (int)(GetSystemMetrics(SM_CXSCREEN) * 0.8), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.8), NULL, hMenu, hInstance, NULL);
 
-    HWND hChild1 = CreateWindow(wcex.lpszClassName, "", WS_CHILDWINDOW,
-        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.1), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.00741),
-        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.89), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.280556), hWnd, NULL, hInstance, NULL);
 
-    HWND hChild2 = CreateWindow(wcex.lpszClassName, "", WS_CHILDWINDOW,
-        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.1), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.299074),
-        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.89), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.280556), hWnd, NULL, hInstance, NULL);
+    WNDCLASS wcex1 = { 0 };
 
-    HWND hChild3 = CreateWindow(wcex.lpszClassName, "", WS_CHILDWINDOW,
-        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.1), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.588889),
-        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.89), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.280556), hWnd, NULL, hInstance, NULL);
+    wcex1.lpfnWndProc = WndChild1;
+    wcex1.hInstance = hInst;
+    wcex1.lpszClassName = ClassNameChild1;
+    wcex1.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wcex1.style = CS_DBLCLKS;
+
+    if (!RegisterClass(&wcex1))
+        return 0;
+
+    WNDCLASS wcex2 = { 0 };
+
+    wcex2.lpfnWndProc = WndChild2;
+    wcex2.hInstance = hInst;
+    wcex2.lpszClassName = ClassNameChild2;
+    wcex2.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wcex2.style = CS_DBLCLKS;
+
+    if (!RegisterClass(&wcex2))
+        return 0;
+
+    WNDCLASS wcex3 = { 0 };
+
+    wcex3.lpfnWndProc = WndChild3;
+    wcex3.hInstance = hInst;
+    wcex3.lpszClassName = ClassNameChild3;
+    wcex3.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wcex3.style = CS_DBLCLKS;
+
+    if (!RegisterClass(&wcex3))
+        return 0;
+
+    RECT sizeWnd;
+    GetClientRect(hWnd, &sizeWnd);
+
+    hChild1 = CreateWindow(wcex1.lpszClassName, "", WS_CHILDWINDOW,
+        (int)(sizeWnd.right * 0.1), (int)(sizeWnd.bottom * 0.01),
+        (int)(sizeWnd.right * 0.89), (int)(sizeWnd.bottom * 0.3029), hWnd, NULL, hInst, NULL);
+
+    hChild2 = CreateWindow(wcex2.lpszClassName, "", WS_CHILDWINDOW,
+        (int)(sizeWnd.right * 0.1), (int)(sizeWnd.bottom * 0.3229),
+        (int)(sizeWnd.right * 0.89), (int)(sizeWnd.bottom * 0.3029), hWnd, NULL, hInst, NULL);
+
+    hChild3 = CreateWindow(wcex3.lpszClassName, "", WS_CHILDWINDOW,
+        (int)(sizeWnd.right * 0.1), (int)(sizeWnd.bottom * 0.6358),
+        (int)(sizeWnd.right * 0.89), (int)(sizeWnd.bottom * 0.3029), hWnd, NULL, hInst, NULL);
+
+    ShowWindow(hChild1, SW_NORMAL);
+    ShowWindow(hChild2, SW_NORMAL);
+    ShowWindow(hChild3, SW_NORMAL);
+
 
     if (hWnd == NULL)
         return 0;
 
     ShowWindow(hWnd, nCmdShow);
-    ShowWindow(hChild1, nCmdShow);
-    ShowWindow(hChild2, nCmdShow);
-    ShowWindow(hChild3, nCmdShow);
+
+
 
     MSG msg;
 
@@ -72,7 +126,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
     {
         EnableMenuItem(GetMenu(hWnd), IDM_FAX, MF_DISABLED);
-        //SetWindowLong(hWnd, GWL_USERDATA, 0);
         return 0;
     }
 
@@ -111,25 +164,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         if (GetWindowLong(hWnd, GWL_USERDATA) == 0)
         {
-            rc1.left = sizeWnd.right * 0.1;
-            rc1.right = sizeWnd.right * 0.99;
-            rc1.top = sizeWnd.bottom * 0.0185;
-            rc1.bottom = sizeWnd.bottom * 0.3148;
+            MoveWindow(hChild1, (int)(sizeWnd.right * 0.1), (int)(sizeWnd.bottom * 0.01),
+                (int)(sizeWnd.right * 0.89), (int)(sizeWnd.bottom * 0.3029), true);
 
-            rc2.left = sizeWnd.right * 0.1;
-            rc2.right = sizeWnd.right * 0.99;
-            rc2.top = sizeWnd.bottom * 0.3333;
-            rc2.bottom = sizeWnd.bottom * 0.6296;
+            MoveWindow(hChild2, (int)(sizeWnd.right * 0.1), (int)(sizeWnd.bottom * 0.3229),
+                (int)(sizeWnd.right * 0.89), (int)(sizeWnd.bottom * 0.3029), true);
 
-            rc3.left = sizeWnd.right * 0.1;
-            rc3.right = sizeWnd.right * 0.99;
-            rc3.top = sizeWnd.bottom * 0.6481;
-            rc3.bottom = sizeWnd.bottom * 0.9444;
+            MoveWindow(hChild3, (int)(sizeWnd.right * 0.1), (int)(sizeWnd.bottom * 0.6358),
+                (int)(sizeWnd.right * 0.89), (int)(sizeWnd.bottom * 0.3029), true);
 
             Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
-            //Rectangle(hdc, rc1.left, rc1.top, rc1.right, rc1.bottom);
-            //Rectangle(hdc, rc2.left, rc2.top, rc2.right, rc2.bottom);
-            //Rectangle(hdc, rc3.left, rc3.top, rc3.right, rc3.bottom);
         }
 
         else
@@ -149,9 +193,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             rc3.top = sizeWnd.bottom * 0.7333;
             rc3.bottom = sizeWnd.bottom * 0.9975;
 
-            Rectangle(hdc, rc1.left, rc1.top, rc1.right, rc1.bottom);
-            Rectangle(hdc, rc2.left, rc2.top, rc2.right, rc2.bottom);
-            Rectangle(hdc, rc3.left, rc3.top, rc3.right, rc3.bottom);
+            //Rectangle(hdc, rc1.left, rc1.top, rc1.right, rc1.bottom);
+            //Rectangle(hdc, rc2.left, rc2.top, rc2.right, rc2.bottom);
+            //Rectangle(hdc, rc3.left, rc3.top, rc3.right, rc3.bottom);
         }
         
         EndPaint(hWnd, &ps);
@@ -171,5 +215,95 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         return 0;
     }
 
+    return DefWindowProc(hWnd, message, wParam, lParam);
+}
+
+LRESULT CALLBACK WndChild1(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+        RECT sizeWnd;
+
+        GetClientRect(hWnd, &sizeWnd);
+        Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+
+    case WM_SIZE:
+    {
+        InvalidateRect(hWnd, NULL, true);
+        return 0;
+    }
+
+    case WM_DESTROY:
+        if (hWnd == FindWindow(ClassName, MainWindow))
+            PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProc(hWnd, message, wParam, lParam);
+}
+
+LRESULT CALLBACK WndChild2(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+        RECT sizeWnd;
+
+        GetClientRect(hWnd, &sizeWnd);
+        Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+
+    case WM_SIZE:
+    {
+        InvalidateRect(hWnd, NULL, true);
+        return 0;
+    }
+
+    case WM_DESTROY:
+        if (hWnd == FindWindow(ClassName, MainWindow))
+            PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProc(hWnd, message, wParam, lParam);
+}
+
+LRESULT CALLBACK WndChild3(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+        RECT sizeWnd;
+
+        GetClientRect(hWnd, &sizeWnd);
+        Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
+
+    case WM_SIZE:
+    {
+        InvalidateRect(hWnd, NULL, true);
+        return 0;
+    }
+
+    case WM_DESTROY:
+        if (hWnd == FindWindow(ClassName, MainWindow))
+            PostQuitMessage(0);
+        return 0;
+    }
     return DefWindowProc(hWnd, message, wParam, lParam);
 }
