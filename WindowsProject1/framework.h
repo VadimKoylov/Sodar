@@ -13,3 +13,7 @@
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
+#include "Lusbapi.h"
+#include <stdio.h>
+#include <cmath>
+#include <conio.h>
