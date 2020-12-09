@@ -16,6 +16,12 @@
 #define ClassNameChildWind2 "ChildWindowWind2"
 #define ClassNameChildWind3 "ChildWindowWind3"
 
+#define PAGE 200
+#define LINE 24
+
+#define M 3000
+#define R 50
+
 HINSTANCE hInst;								// текущий экземпляр
 
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
@@ -440,7 +446,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
         case IDM_WIND:
         {
-            SetWindowLong(hWnd, GWL_USERDATA, 1);
+            SetWindowLong(hWnd, GWLP_USERDATA, 1);
             InvalidateRect(hWnd, NULL, true);
             EnableMenuItem(GetMenu(hWnd), IDM_FAX, MF_ENABLED);
             EnableMenuItem(GetMenu(hWnd), IDM_WIND, MF_DISABLED);
@@ -448,7 +454,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         case IDM_FAX:
         {
-            SetWindowLong(hWnd, GWL_USERDATA, 0);
+            SetWindowLong(hWnd, GWLP_USERDATA, 0);
             InvalidateRect(hWnd, NULL, true);
             EnableMenuItem(GetMenu(hWnd), IDM_FAX, MF_DISABLED);
             EnableMenuItem(GetMenu(hWnd), IDM_WIND, MF_ENABLED);
@@ -467,7 +473,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         GetClientRect(hWnd, &sizeWnd);
 
-        if (GetWindowLong(hWnd, GWL_USERDATA) == 0)
+        if (GetWindowLong(hWnd, GWLP_USERDATA) == 0)
         {
             MoveWindow(hChildFax, 0, 0, (int)(sizeWnd.right), (int)(sizeWnd.bottom), true);
 
