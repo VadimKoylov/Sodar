@@ -17,8 +17,6 @@
 #define ID_FAKS                         32773
 #define IDM_WIND                        32774
 #define IDM_FAX                         32775
-#define IDM_FAX                         32776
-#define IDM_WIND                        32777
 #define IDC_STATIC                      -1
 
 // Next default values for new objects

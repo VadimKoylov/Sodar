@@ -41,11 +41,13 @@ HWND hChildFax, hChildFax1, hChildFax2, hChildFax3;
 HWND hChildWind, hChildWind1, hChildWind2, hChildWind3;
 
 // аварийный выход из программы
-void AbortProgram(char ErrorString, bool AbortionFlag = true);
+void AbortProgram(bool AbortionFlag = true);
 // функция потока ввода данных с АЦП
 DWORD WINAPI ServiceReadThread(PVOID /*Context*/);
 // функция вывода сообщений с ошибками
 void ShowThreadErrorMessage(void);
+// главная функция для счтывания
+void MainRead();
 
 // идентификатор файла
 HANDLE hFile;
@@ -252,162 +254,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         EnableMenuItem(GetMenu(hWnd), IDM_FAX, MF_DISABLED);
 
+        MainRead();
 
-
-
-        ////////////////////////////////////////////////////////////////////////////
-        ////////////////НУЖНО СЧИТЫВАНИЕ ДАННЫХ, А ТУТ ЗАПИСЬ:(/////////////////////
-        ////////////////////////////////////////////////////////////////////////////
-        {
-            WORD i;
-
+        { 
             // сбросим флажок завершения потока ввода данных
             IsReadThreadComplete = false;
-            // пока ничего не выделено под буфер данных
-            ReadBuffer = NULL;
-            // пока не создан поток ввода данных
-            hReadThread = NULL;
-            // пока откытого файла нет :(
-            hFile = INVALID_HANDLE_VALUE;
-            // сбросим флаг ошибок потока ввода данных
-            ReadThreadErrorNumber = 0x0;
-
-            //проверим версию используемой библиотеки Lusbapi.dll
-            if ((DllVersion = GetDllVersion()) != CURRENT_VERSION_LUSBAPI)
-            {
-                MessageBox(hWnd, "Lusbapi.dll Version Error!!!", "ERROR", NULL);
-                AbortProgram(char("Lusbapi.dll Version Error!!!"));
-            }
-
-            // попробуем получить указатель на интерфейс
-            pModule = static_cast<ILE440*>(CreateLInstance(PCHAR("e440")));
-            if (!pModule)
-            {
-                MessageBox(hWnd, "Module Interface --> Bad", "ERROR", NULL);
-                AbortProgram(char("Module Interface --> Bad"));
-            }
-
-            // попробуем обнаружить модуль E14-440 в первых MAX_VIRTUAL_SLOTS_QUANTITY_LUSBAPI виртуальных слотах
-            for (i = 0x0; i < MAX_VIRTUAL_SLOTS_QUANTITY_LUSBAPI; i++)
-            {
-                if (pModule->OpenLDevice(i))
-                {
-                    break;
-                }
-            }
-            // что-нибудь обнаружили?
-            if (i == MAX_VIRTUAL_SLOTS_QUANTITY_LUSBAPI)
-            {
-                MessageBox(hWnd, "Can't find any module E14-440 in first 127 virtual slots!", "ERROR", NULL);
-                AbortProgram(char("Can't find any module E14-440 in first 127 virtual slots!\n"));
-            }
-
-            // попробуем прочитать дескриптор устройства
-            ModuleHandle = pModule->GetModuleHandle();
-            if (ModuleHandle == INVALID_HANDLE_VALUE)
-            {
-                MessageBox(hWnd, "GetModuleHandle() --> Bad", "ERROR", NULL);
-                AbortProgram(char("GetModuleHandle() --> Bad\n"));
-            }
-
-            // прочитаем название модуля в обнаруженном виртуальном слоте
-            if (!pModule->GetModuleName(ModuleName))
-            {
-                MessageBox(hWnd, "GetModuleName() --> Bad", "ERROR", NULL);
-                AbortProgram(char("GetModuleName() --> Bad\n"));
-            }
-
-            // проверим, что это 'E14-440'
-            if (strcmp(ModuleName, "E440"))
-            {
-                MessageBox(hWnd, "The module is not 'E14-440'", "ERROR", NULL);
-                AbortProgram(char("The module is not 'E14-440'\n"));
-            }
-
-            // попробуем получить скорость работы шины USB
-            if (!pModule->GetUsbSpeed(&UsbSpeed))
-            {
-                MessageBox(hWnd, "GetUsbSpeed() --> Bad", "ERROR", NULL);
-                AbortProgram(char("GetUsbSpeed() --> Bad\n"));
-            }
-
-            // код LBIOS'а возьмём из соответствующего ресурса штатной DLL библиотеки
-            if (!pModule->LOAD_MODULE())
-            {
-                MessageBox(hWnd, "LOAD_MODULE() --> Bad", "ERROR", NULL);
-                AbortProgram(char("LOAD_MODULE() --> Bad\n"));
-            }
-
-            // проверим загрузку модуля
-            if (!pModule->TEST_MODULE())
-            {
-                MessageBox(hWnd, "TEST_MODULE() --> Bad", "ERROR", NULL);
-                AbortProgram(char("TEST_MODULE() --> Bad\n"));
-            }
-
-            // получим информацию из ППЗУ модуля
-            if (!pModule->GET_MODULE_DESCRIPTION(&ModuleDescription))
-            {
-                MessageBox(hWnd, "GET_MODULE_DESCRIPTION() --> Bad", "ERROR", NULL);
-                AbortProgram(char("GET_MODULE_DESCRIPTION() --> Bad\n"));
-            }
-
-            // получим текущие параметры работы АЦП
-            if (!pModule->GET_ADC_PARS(&ap))
-            {
-                AbortProgram(char(" GET_ADC_PARS() --> Bad\n"));
-            }
-
-            // установим желаемые параметры работы АЦП
-            ap.IsCorrectionEnabled = TRUE;			// разрешим корректировку данных на уровне драйвера DSP
-            ap.InputMode = NO_SYNC_E440;				// обычный сбор данных безо всякой синхронизации ввода
-            ap.ChannelsQuantity = 0x4;					// четыре активных канала
-            // формируем управляющую таблицу 
-            for (i = 0x0; i < ap.ChannelsQuantity; i++)
-            {
-                ap.ControlTable[i] = (WORD)(i | (ADC_INPUT_RANGE_2500mV_E440 << 0x6));
-            }
-            ap.AdcRate = 400.0;							// частота работы АЦП в кГц
-            ap.InterKadrDelay = 0.0;					// межкадровая задержка в мс
-            ap.AdcFifoBaseAddress = 0x0;			  	// базовый адрес FIFO буфера АЦП в DSP модуля
-            ap.AdcFifoLength = MAX_ADC_FIFO_SIZE_E440;	// длина FIFO буфера АЦП в DSP модуля
-            // будем использовать фирменные калибровочные коэффициенты, которые храняться в ППЗУ модуля
-            for (i = 0x0; i < ADC_CALIBR_COEFS_QUANTITY_E440; i++)
-            {
-                ap.AdcOffsetCoefs[i] = ModuleDescription.Adc.OffsetCalibration[i];
-                ap.AdcScaleCoefs[i] = ModuleDescription.Adc.ScaleCalibration[i];
-            }
-
-            // передадим требуемые параметры работы АЦП в модуль
-            if (!pModule->SET_ADC_PARS(&ap))
-            {
-                MessageBox(hWnd, "SET_ADC_PARS() --> Bad", "ERROR", NULL);
-                AbortProgram(char("SET_ADC_PARS() --> Bad\n"));
-            }
-
-            // выделим память под буфер
-            ReadBuffer = new SHORT[2 * DataStep];
-            if (!ReadBuffer)
-            {
-                MessageBox(hWnd, "Can not allocate memory", "ERROR", NULL);
-                AbortProgram(char("Can not allocate memory\n"));
-            }
-
-            // откроем файл для записи получаемых с модуля данных
-            hFile = CreateFile("Test.dat", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
-                FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_WRITE_THROUGH, NULL);
-            if (hFile == INVALID_HANDLE_VALUE)
-            {
-                MessageBox(hWnd, "Can't create file 'Test.dat'!", "ERROR", NULL);
-                AbortProgram(char("\n Can't create file 'Test.dat'!\n"));
-            }
 
             // Создаём и запускаем поток сбора данных
             hReadThread = CreateThread(0, 0x2000, ServiceReadThread, 0, 0, &ReadTid);
             if (!hReadThread)
             {
                 MessageBox(hWnd, "ServiceReadThread() --> Bad", "ERROR", NULL);
-                AbortProgram(char("ServiceReadThread() --> Bad\n"));
+                AbortProgram();
             }
 
             while (!IsReadThreadComplete)
@@ -428,12 +286,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // проверим была ли ошибка выполнения потока сбора данных
             if (ReadThreadErrorNumber)
             {
-                AbortProgram(NULL, false);
+                AbortProgram(false);
                 ShowThreadErrorMessage();
             }
             else
             {
-                AbortProgram(char(" The program was completed successfully!!!\n"), false);
+                AbortProgram(false);
             }
         }
 
@@ -468,7 +326,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
-        RECT rc1, rc2, rc3;
         RECT sizeWnd;
 
         GetClientRect(hWnd, &sizeWnd);
@@ -506,8 +363,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             ShowWindow(hChildFax, SW_HIDE);
             ShowWindow(hChildWind, SW_SHOW);
         }
-        
-
 
         EndPaint(hWnd, &ps);
         return 0;
@@ -518,7 +373,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         InvalidateRect(hWnd, NULL, true);
         return 0;
     }
- 
 
     case WM_DESTROY:
     {
@@ -531,245 +385,402 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
-LRESULT CALLBACK WndChildFax(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndChildFax(HWND hChildFax, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hWnd, &ps);
+        HDC hdc = BeginPaint(hChildFax, &ps);
         RECT sizeWnd;
 
-        GetClientRect(hWnd, &sizeWnd);
+        GetClientRect(hChildFax, &sizeWnd);
         Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
-        EndPaint(hWnd, &ps);
+        EndPaint(hChildFax, &ps);
         return 0;
     }
 
     case WM_SIZE:
     {
-        InvalidateRect(hWnd, NULL, true);
+        InvalidateRect(hChildFax, NULL, true);
         return 0;
     }
 
     case WM_DESTROY:
-        if (hWnd == FindWindow(ClassName, MainWindow))
+        if (hChildFax == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
     }
-    return DefWindowProc(hWnd, message, wParam, lParam);
+    return DefWindowProc(hChildFax, message, wParam, lParam);
 }
 
-LRESULT CALLBACK WndChildFax1(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndChildFax1(HWND hChildFax1, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hWnd, &ps);
+        HDC hdc = BeginPaint(hChildFax1, &ps);
         RECT sizeWnd;
 
-        GetClientRect(hWnd, &sizeWnd);
+        GetClientRect(hChildFax1, &sizeWnd);
         Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
-        EndPaint(hWnd, &ps);
+        EndPaint(hChildFax1, &ps);
         return 0;
     }
 
     case WM_SIZE:
     {
-        InvalidateRect(hWnd, NULL, true);
+        InvalidateRect(hChildFax1, NULL, true);
         return 0;
     }
 
     case WM_DESTROY:
-        if (hWnd == FindWindow(ClassName, MainWindow))
+        if (hChildFax1 == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
     }
-    return DefWindowProc(hWnd, message, wParam, lParam);
+    return DefWindowProc(hChildFax1, message, wParam, lParam);
 }
 
-LRESULT CALLBACK WndChildFax2(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndChildFax2(HWND hChildFax2, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hWnd, &ps);
+        HDC hdc = BeginPaint(hChildFax2, &ps);
         RECT sizeWnd;
 
-        GetClientRect(hWnd, &sizeWnd);
+        GetClientRect(hChildFax2, &sizeWnd);
         Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
-        EndPaint(hWnd, &ps);
+        EndPaint(hChildFax2, &ps);
         return 0;
     }
 
     case WM_SIZE:
     {
-        InvalidateRect(hWnd, NULL, true);
+        InvalidateRect(hChildFax2, NULL, true);
         return 0;
     }
 
     case WM_DESTROY:
-        if (hWnd == FindWindow(ClassName, MainWindow))
+        if (hChildFax2 == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
     }
-    return DefWindowProc(hWnd, message, wParam, lParam);
+    return DefWindowProc(hChildFax2, message, wParam, lParam);
 }
 
-LRESULT CALLBACK WndChildFax3(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndChildFax3(HWND hChildFax3, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hWnd, &ps);
+        HDC hdc = BeginPaint(hChildFax3, &ps);
         RECT sizeWnd;
 
-        GetClientRect(hWnd, &sizeWnd);
+        GetClientRect(hChildFax3, &sizeWnd);
         Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
-        EndPaint(hWnd, &ps);
+        EndPaint(hChildFax3, &ps);
         return 0;
     }
 
     case WM_SIZE:
     {
-        InvalidateRect(hWnd, NULL, true);
+        InvalidateRect(hChildFax3, NULL, true);
         return 0;
     }
 
     case WM_DESTROY:
-        if (hWnd == FindWindow(ClassName, MainWindow))
+        if (hChildFax3 == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
     }
-    return DefWindowProc(hWnd, message, wParam, lParam);
+    return DefWindowProc(hChildFax3, message, wParam, lParam);
 }
 
-LRESULT CALLBACK WndChildWind(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndChildWind(HWND hChildWind, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hWnd, &ps);
+        HDC hdc = BeginPaint(hChildWind, &ps);
         RECT sizeWnd;
 
-        GetClientRect(hWnd, &sizeWnd);
+        GetClientRect(hChildWind, &sizeWnd);
         Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
-        EndPaint(hWnd, &ps);
+        EndPaint(hChildWind, &ps);
         return 0;
     }
 
     case WM_SIZE:
     {
-        InvalidateRect(hWnd, NULL, true);
+        InvalidateRect(hChildWind, NULL, true);
         return 0;
     }
 
     case WM_DESTROY:
-        if (hWnd == FindWindow(ClassName, MainWindow))
+        if (hChildWind == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
     }
-    return DefWindowProc(hWnd, message, wParam, lParam);
+    return DefWindowProc(hChildWind, message, wParam, lParam);
 }
 
-LRESULT CALLBACK WndChildWind1(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndChildWind1(HWND hChildWind1, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hWnd, &ps);
+        HDC hdc = BeginPaint(hChildWind1, &ps);
         RECT sizeWnd;
 
-        GetClientRect(hWnd, &sizeWnd);
+        GetClientRect(hChildWind1, &sizeWnd);
         Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
-        EndPaint(hWnd, &ps);
+        EndPaint(hChildWind1, &ps);
         return 0;
     }
 
     case WM_SIZE:
     {
-        InvalidateRect(hWnd, NULL, true);
+        InvalidateRect(hChildWind1, NULL, true);
         return 0;
     }
 
     case WM_DESTROY:
-        if (hWnd == FindWindow(ClassName, MainWindow))
+        if (hChildWind1 == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
     }
-    return DefWindowProc(hWnd, message, wParam, lParam);
+    return DefWindowProc(hChildWind1, message, wParam, lParam);
 }
 
-LRESULT CALLBACK WndChildWind2(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndChildWind2(HWND hChildWind2, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hWnd, &ps);
+        HDC hdc = BeginPaint(hChildWind2, &ps);
         RECT sizeWnd;
 
-        GetClientRect(hWnd, &sizeWnd);
+        GetClientRect(hChildWind2, &sizeWnd);
         Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
-        EndPaint(hWnd, &ps);
+        EndPaint(hChildWind2, &ps);
         return 0;
     }
 
     case WM_SIZE:
     {
-        InvalidateRect(hWnd, NULL, true);
+        InvalidateRect(hChildWind2, NULL, true);
         return 0;
     }
 
     case WM_DESTROY:
-        if (hWnd == FindWindow(ClassName, MainWindow))
+        if (hChildWind2 == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
     }
-    return DefWindowProc(hWnd, message, wParam, lParam);
+    return DefWindowProc(hChildWind2, message, wParam, lParam);
 }
 
-LRESULT CALLBACK WndChildWind3(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndChildWind3(HWND hChildWind3, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hWnd, &ps);
+        HDC hdc = BeginPaint(hChildWind3, &ps);
         RECT sizeWnd;
 
-        GetClientRect(hWnd, &sizeWnd);
+        GetClientRect(hChildWind3, &sizeWnd);
         Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
-        EndPaint(hWnd, &ps);
+        EndPaint(hChildWind3, &ps);
         return 0;
     }
 
     case WM_SIZE:
     {
-        InvalidateRect(hWnd, NULL, true);
+        InvalidateRect(hChildWind3, NULL, true);
         return 0;
     }
 
     case WM_DESTROY:
-        if (hWnd == FindWindow(ClassName, MainWindow))
+        if (hChildWind3 == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
     }
-    return DefWindowProc(hWnd, message, wParam, lParam);
+    return DefWindowProc(hChildWind3, message, wParam, lParam);
 }
+
+//------------------------------------------------------------------------
+// Главная функция для считывания файлов
+//------------------------------------------------------------------------
+void ToDoThread()
+{
+}
+
+//------------------------------------------------------------------------
+// Главная функция для считывания файлов
+//------------------------------------------------------------------------
+void MainRead() {
+    WORD i;
+
+
+    // пока ничего не выделено под буфер данных
+    ReadBuffer = NULL;
+    // пока не создан поток ввода данных
+    hReadThread = NULL;
+    // пока откытого файла нет :(
+    hFile = INVALID_HANDLE_VALUE;
+    // сбросим флаг ошибок потока ввода данных
+    ReadThreadErrorNumber = 0x0;
+
+    //проверим версию используемой библиотеки Lusbapi.dll
+    if ((DllVersion = GetDllVersion()) != CURRENT_VERSION_LUSBAPI)
+    {
+        MessageBox(hWnd, "Lusbapi.dll Version Error!!!", "ERROR", NULL);
+        AbortProgram();
+    }
+
+    // попробуем получить указатель на интерфейс
+    pModule = static_cast<ILE440*>(CreateLInstance(PCHAR("e440")));
+    if (!pModule)
+    {
+        MessageBox(hWnd, "Module Interface --> Bad", "ERROR", NULL);
+        AbortProgram();
+    }
+
+    // попробуем обнаружить модуль E14-440 в первых MAX_VIRTUAL_SLOTS_QUANTITY_LUSBAPI виртуальных слотах
+    for (i = 0x0; i < MAX_VIRTUAL_SLOTS_QUANTITY_LUSBAPI; i++)
+    {
+        if (pModule->OpenLDevice(i))
+        {
+            break;
+        }
+    }
+    // что-нибудь обнаружили?
+    if (i == MAX_VIRTUAL_SLOTS_QUANTITY_LUSBAPI)
+    {
+        MessageBox(hWnd, "Can't find any module E14-440 in first 127 virtual slots!", "ERROR", NULL);
+        AbortProgram();
+    }
+
+    // попробуем прочитать дескриптор устройства
+    ModuleHandle = pModule->GetModuleHandle();
+    if (ModuleHandle == INVALID_HANDLE_VALUE)
+    {
+        MessageBox(hWnd, "GetModuleHandle() --> Bad", "ERROR", NULL);
+        AbortProgram();
+    }
+
+    // прочитаем название модуля в обнаруженном виртуальном слоте
+    if (!pModule->GetModuleName(ModuleName))
+    {
+        MessageBox(hWnd, "GetModuleName() --> Bad", "ERROR", NULL);
+        AbortProgram();
+    }
+
+    // проверим, что это 'E14-440'
+    if (strcmp(ModuleName, "E440"))
+    {
+        MessageBox(hWnd, "The module is not 'E14-440'", "ERROR", NULL);
+        AbortProgram();
+    }
+
+    // попробуем получить скорость работы шины USB
+    if (!pModule->GetUsbSpeed(&UsbSpeed))
+    {
+        MessageBox(hWnd, "GetUsbSpeed() --> Bad", "ERROR", NULL);
+        AbortProgram();
+    }
+
+    // код LBIOS'а возьмём из соответствующего ресурса штатной DLL библиотеки
+    if (!pModule->LOAD_MODULE())
+    {
+        MessageBox(hWnd, "LOAD_MODULE() --> Bad", "ERROR", NULL);
+        AbortProgram();
+    }
+
+    // проверим загрузку модуля
+    if (!pModule->TEST_MODULE())
+    {
+        MessageBox(hWnd, "TEST_MODULE() --> Bad", "ERROR", NULL);
+        AbortProgram();
+    }
+
+    // получим информацию из ППЗУ модуля
+    if (!pModule->GET_MODULE_DESCRIPTION(&ModuleDescription))
+    {
+        MessageBox(hWnd, "GET_MODULE_DESCRIPTION() --> Bad", "ERROR", NULL);
+        AbortProgram();
+    }
+
+    // получим текущие параметры работы АЦП
+    if (!pModule->GET_ADC_PARS(&ap))
+    {
+        AbortProgram();
+    }
+
+    // установим желаемые параметры работы АЦП
+    ap.IsCorrectionEnabled = TRUE;			// разрешим корректировку данных на уровне драйвера DSP
+    ap.InputMode = NO_SYNC_E440;				// обычный сбор данных безо всякой синхронизации ввода
+    ap.ChannelsQuantity = 0x4;					// четыре активных канала
+    // формируем управляющую таблицу 
+    for (i = 0x0; i < ap.ChannelsQuantity; i++)
+    {
+        ap.ControlTable[i] = (WORD)(i | (ADC_INPUT_RANGE_2500mV_E440 << 0x6));
+    }
+    ap.AdcRate = 400.0;							// частота работы АЦП в кГц
+    ap.InterKadrDelay = 0.0;					// межкадровая задержка в мс
+    ap.AdcFifoBaseAddress = 0x0;			  	// базовый адрес FIFO буфера АЦП в DSP модуля
+    ap.AdcFifoLength = MAX_ADC_FIFO_SIZE_E440;	// длина FIFO буфера АЦП в DSP модуля
+    // будем использовать фирменные калибровочные коэффициенты, которые храняться в ППЗУ модуля
+    for (i = 0x0; i < ADC_CALIBR_COEFS_QUANTITY_E440; i++)
+    {
+        ap.AdcOffsetCoefs[i] = ModuleDescription.Adc.OffsetCalibration[i];
+        ap.AdcScaleCoefs[i] = ModuleDescription.Adc.ScaleCalibration[i];
+    }
+
+    // передадим требуемые параметры работы АЦП в модуль
+    if (!pModule->SET_ADC_PARS(&ap))
+    {
+        MessageBox(hWnd, "SET_ADC_PARS() --> Bad", "ERROR", NULL);
+        AbortProgram();
+    }
+
+    // выделим память под буфер
+    ReadBuffer = new SHORT[2 * DataStep];
+    if (!ReadBuffer)
+    {
+        MessageBox(hWnd, "Can not allocate memory", "ERROR", NULL);
+        AbortProgram();
+    }
+
+    // откроем файл для записи получаемых с модуля данных
+    hFile = CreateFile("Test.dat", GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_WRITE_THROUGH, NULL);
+    if (hFile == INVALID_HANDLE_VALUE)
+    {
+        MessageBox(hWnd, "Can't create file 'Test.dat'!", "ERROR", NULL);
+        AbortProgram();
+    }
+
+
+} //
+
 
 //------------------------------------------------------------------------
 // Поток, в котором осуществляется сбор данных
@@ -853,28 +864,23 @@ DWORD WINAPI ServiceReadThread(PVOID /*Context*/)
                 2 * DataStep,	 											// number of bytes to write
                 &FileBytesWritten,									// pointer to number of bytes written
                 NULL			  											// pointer to structure needed for overlapped I/O
-            )) {
-                ReadThreadErrorNumber = 0x4; break;
+            ))
+            {
+                ReadThreadErrorNumber = 0x4;
+                break;
             }
-
             if (ReadThreadErrorNumber)
             {
                 break;
             }
             else
             {
-                if (_kbhit())
-                {
-                    ReadThreadErrorNumber = 0x5;
-                    break;
-                }
-
-                else
-                {
-                    Sleep(20);
-                }
+                Sleep(20);
             }
             Counter++;
+
+
+
         }
 
         // последняя порция данных
@@ -987,7 +993,7 @@ void ShowThreadErrorMessage(void)
 //------------------------------------------------------------------------
 // аварийное завершение программы
 //------------------------------------------------------------------------
-void AbortProgram(char ErrorString, bool AbortionFlag)
+void AbortProgram(bool AbortionFlag)
 {
     // подчищаем интерфейс модуля
     if (pModule)
@@ -996,10 +1002,6 @@ void AbortProgram(char ErrorString, bool AbortionFlag)
         if (!pModule->ReleaseLInstance())
         {
             MessageBox(hWnd, "ReleaseLInstance() --> Bad!", "ERROR", NULL);
-        }
-        else
-        {
-            MessageBox(hWnd, "ReleaseLInstance() --> OK!", "Успех", MB_OK);
         }
         // обнулим указатель на интерфейс модуля
         pModule = NULL;
@@ -1022,19 +1024,6 @@ void AbortProgram(char ErrorString, bool AbortionFlag)
     {
         CloseHandle(hFile);
         hFile = INVALID_HANDLE_VALUE;
-    }
-
-    // выводим текст сообщения
-    if (ErrorString)
-    {
-        MessageBox(hWnd, "Ошибка", "ERROR", NULL);
-    }
-
-    // прочистим очередь клавиатуры
-    if (_kbhit())
-    {
-        while (_kbhit())
-            _getch();
     }
 
     // если нужно - аварийно завершаем программу
