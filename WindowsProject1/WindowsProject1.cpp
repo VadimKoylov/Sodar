@@ -43,7 +43,7 @@ HWND hChildWind, hChildWind1, hChildWind2, hChildWind3;
 // аварийный выход из программы
 void AbortProgram(bool AbortionFlag = true);
 // функция потока ввода данных с АЦП
-DWORD WINAPI ServiceReadThread(PVOID /*Context*/);
+DWORD WINAPI ServiceReadThread(PVOID Context);
 // функция вывода сообщений с ошибками
 void ShowThreadErrorMessage(void);
 // главная функция для счтывания
@@ -261,7 +261,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             IsReadThreadComplete = false;
 
             // Создаём и запускаем поток сбора данных
-            hReadThread = CreateThread(0, 0x2000, ServiceReadThread, 0, 0, &ReadTid);
+            hReadThread = CreateThread(0, 0x2000, ServiceReadThread, (PVOID)hWnd, 0, NULL);//hWnd дескриптор главного окна
             if (!hReadThread)
             {
                 MessageBox(hWnd, "ServiceReadThread() --> Bad", "ERROR", NULL);
@@ -318,6 +318,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             EnableMenuItem(GetMenu(hWnd), IDM_WIND, MF_ENABLED);
             break;
         }
+        }
+        return 0;
+    }
+
+    case WM_USER + 100: //из потока пришли сюда
+    {
+
+        if (wParam == 1)
+        {
+            InvalidateRect(hWnd, NULL, TRUE);
         }
         return 0;
     }
@@ -625,12 +635,6 @@ LRESULT CALLBACK WndChildWind3(HWND hChildWind3, UINT message, WPARAM wParam, LP
     return DefWindowProc(hChildWind3, message, wParam, lParam);
 }
 
-//------------------------------------------------------------------------
-// Главная функция для считывания файлов
-//------------------------------------------------------------------------
-void ToDoThread()
-{
-}
 
 //------------------------------------------------------------------------
 // Главная функция для считывания файлов
@@ -785,8 +789,9 @@ void MainRead() {
 //------------------------------------------------------------------------
 // Поток, в котором осуществляется сбор данных
 //------------------------------------------------------------------------
-DWORD WINAPI ServiceReadThread(PVOID /*Context*/)
+DWORD WINAPI ServiceReadThread(PVOID Context)
 {
+    HWND hwndMain = (HWND)Context;
     WORD i;
     WORD RequestNumber;
     DWORD FileBytesWritten;
@@ -828,6 +833,8 @@ DWORD WINAPI ServiceReadThread(PVOID /*Context*/)
         IsReadThreadComplete = true;
         return 0x0;
     }
+
+    PostMessage(hwndMain, WM_USER + 100, 1, 0); //
 
     // запустим АЦП
     if (pModule->START_ADC())
@@ -878,9 +885,6 @@ DWORD WINAPI ServiceReadThread(PVOID /*Context*/)
                 Sleep(20);
             }
             Counter++;
-
-
-
         }
 
         // последняя порция данных
