@@ -6,6 +6,8 @@
 #define ClassName "MainWindow"
 #define MainWindow "SODAR"
 
+#define ClassNameDlg "Dlg"
+
 #define ClassNameChildFax "ChildWindowFax"
 #define ClassNameChildFax1 "ChildWindowFax1"
 #define ClassNameChildFax2 "ChildWindowFax2"
@@ -26,6 +28,8 @@ HINSTANCE hInst;								// текущий экземпляр
 
 LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 
+LRESULT CALLBACK    WndDlg(HWND, UINT, WPARAM, LPARAM);
+
 LRESULT CALLBACK	WndChildFax(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK	WndChildFax1(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK	WndChildFax2(HWND, UINT, WPARAM, LPARAM);
@@ -37,6 +41,7 @@ LRESULT CALLBACK	WndChildWind2(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK	WndChildWind3(HWND, UINT, WPARAM, LPARAM);
 
 HWND hWnd;
+HWND hDlg;                                     //окно, использующееся как диалоговое
 HWND hChildFax, hChildFax1, hChildFax2, hChildFax3;
 HWND hChildWind, hChildWind1, hChildWind2, hChildWind3;
 
@@ -83,9 +88,6 @@ bool IsReadThreadComplete;
 // номер ошибки при выполнении сбора данных
 WORD ReadThreadErrorNumber;
 
-// экранный счетчик-индикатор
-DWORD Counter = 0x0, OldCounter = 0xFFFFFFFF;
-
 int APIENTRY WinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
                      _In_ LPTSTR    lpCmdLine,
@@ -109,14 +111,13 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
 
     hWnd = CreateWindow(wcex.lpszClassName, MainWindow, WS_OVERLAPPEDWINDOW | WS_MAXIMIZE,
         (int)(GetSystemMetrics(SM_CXSCREEN) * 0.1), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.1),
-        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.8), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.8), NULL, hMenu, hInstance, NULL);
+        (int)(GetSystemMetrics(SM_CXSCREEN) * 0.8), (int)(GetSystemMetrics(SM_CYSCREEN) * 0.8),
+        NULL,hMenu, hInstance, NULL);
 
     if (hWnd == NULL)
         return 0;
 
     ShowWindow(hWnd, nCmdShow);
-
-
 
     MSG msg;
 
@@ -136,7 +137,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
 
     case WM_CREATE:
-    {
+    {     
+        WNDCLASS wcexDlg = { 0 };
+
+        wcexDlg.lpfnWndProc = WndDlg;
+        wcexDlg.hInstance = hInst;
+        wcexDlg.lpszClassName = ClassNameDlg;
+        wcexDlg.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+        wcexDlg.style = CS_DBLCLKS;
+
+        if (!RegisterClass(&wcexDlg))
+            return 0;
+
         WNDCLASS wcexFax = { 0 };
 
         wcexFax.lpfnWndProc = WndChildFax;
@@ -228,7 +240,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         RECT sizeWnd;
         GetClientRect(hWnd, &sizeWnd);
 
-        hChildFax = CreateWindow(wcexFax.lpszClassName, "", WS_CHILDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, sizeWnd.right, sizeWnd.bottom, hWnd, NULL, hInst, NULL);
+        //создаем диалоговое окно
+        hDlg = CreateWindow(wcexDlg.lpszClassName, "", WS_OVERLAPPEDWINDOW, (GetSystemMetrics(SM_CXSCREEN) - 300) / 2,
+            (GetSystemMetrics(SM_CYSCREEN) - 300) / 2, 300, 300, hWnd, NULL, hInst, NULL);
+        
+        //создаем окно для факс-записей, в которое добавляем 3 окна
+        hChildFax = CreateWindow(wcexFax.lpszClassName, "", WS_CHILDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, sizeWnd.right,
+            sizeWnd.bottom, hWnd, NULL, hInst, NULL);
 
         hChildFax1 = CreateWindow(wcexFax1.lpszClassName, "", WS_CHILDWINDOW, 0, 0, 0, 0, hChildFax, NULL, hInst, NULL);
 
@@ -236,13 +254,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         hChildFax3 = CreateWindow(wcexFax3.lpszClassName, "", WS_CHILDWINDOW, 0, 0, 0, 0, hChildFax, NULL, hInst, NULL);
 
-        hChildWind = CreateWindow(wcexWind.lpszClassName, "", WS_CHILDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, sizeWnd.right, sizeWnd.bottom, hWnd, NULL, hInst, NULL);
+        //создаем окно для ветра, в которое добавляем 3 окна
+        hChildWind = CreateWindow(wcexWind.lpszClassName, "", WS_CHILDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, sizeWnd.right,
+            sizeWnd.bottom, hWnd, NULL, hInst, NULL);
 
-        hChildWind1 = CreateWindow(wcexWind1.lpszClassName, "", WS_CHILDWINDOW,0, 0, 0, 0, hChildWind, NULL, hInst, NULL);
+        hChildWind1 = CreateWindow(wcexWind1.lpszClassName, "", WS_CHILDWINDOW, 0, 0, 0, 0, hChildWind, NULL, hInst, NULL);
 
         hChildWind2 = CreateWindow(wcexWind2.lpszClassName, "", WS_CHILDWINDOW, 0, 0, 0, 0, hChildWind, NULL, hInst, NULL);
 
         hChildWind3 = CreateWindow(wcexWind3.lpszClassName, "", WS_CHILDWINDOW, 0, 0, 0, 0, hChildWind, NULL, hInst, NULL);
+
+        ShowWindow(hDlg, SW_SHOW);
 
         ShowWindow(hChildFax1, SW_SHOW);
         ShowWindow(hChildFax2, SW_SHOW);
@@ -255,45 +277,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         EnableMenuItem(GetMenu(hWnd), IDM_FAX, MF_DISABLED);
 
         MainRead();
-
-        { 
-            // сбросим флажок завершения потока ввода данных
-            IsReadThreadComplete = false;
-
-            // Создаём и запускаем поток сбора данных
-            hReadThread = CreateThread(0, 0x2000, ServiceReadThread, (PVOID)hWnd, 0, NULL);//hWnd дескриптор главного окна
-            if (!hReadThread)
-            {
-                MessageBox(hWnd, "ServiceReadThread() --> Bad", "ERROR", NULL);
-                AbortProgram();
-            }
-
-            while (!IsReadThreadComplete)
-            {
-                if (OldCounter != Counter)
-                {
-                    OldCounter = Counter;
-                }
-                else
-                {
-                    Sleep(20);
-                }
-            }
-
-            // ждём окончания работы потока ввода данных
-            WaitForSingleObject(hReadThread, INFINITE);
-
-            // проверим была ли ошибка выполнения потока сбора данных
-            if (ReadThreadErrorNumber)
-            {
-                AbortProgram(false);
-                ShowThreadErrorMessage();
-            }
-            else
-            {
-                AbortProgram(false);
-            }
-        }
 
         return 0;
     }
@@ -322,16 +305,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         return 0;
     }
 
-    case WM_USER + 100: //из потока пришли сюда
-    {
-
-        if (wParam == 1)
-        {
-            InvalidateRect(hWnd, NULL, TRUE);
-        }
-        return 0;
-    }
-
     case WM_PAINT:
     {
         PAINTSTRUCT ps;
@@ -340,6 +313,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         GetClientRect(hWnd, &sizeWnd);
 
+        //отрисовка окон в зависимости от нажатого пункта в меню
         if (GetWindowLong(hWnd, GWLP_USERDATA) == 0)
         {
             MoveWindow(hChildFax, 0, 0, (int)(sizeWnd.right), (int)(sizeWnd.bottom), true);
@@ -352,7 +326,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
             MoveWindow(hChildFax3, (int)(sizeWnd.right * 0.1), (int)(sizeWnd.bottom * 0.6358),
                 (int)(sizeWnd.right * 0.89), (int)(sizeWnd.bottom * 0.3029), true);
-
+            
             ShowWindow(hChildFax, SW_SHOW);
             ShowWindow(hChildWind, SW_HIDE);
         }
@@ -393,6 +367,51 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     }
 
     return DefWindowProc(hWnd, message, wParam, lParam);
+}
+
+
+LRESULT CALLBACK WndDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    switch (message)
+    {
+
+    case WM_CREATE:
+    {
+        HWND hButtonOk = CreateWindow("button", "OK", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            20, 180, 80, 30, hDlg, (HMENU)(ID_BUTTON), (HINSTANCE)GetWindowLong(hDlg, GWL_HINSTANCE),
+            NULL);
+
+        HWND hButtonCancel = CreateWindow("button", "Отмена", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            150, 180, 80, 30, hDlg, (HMENU)(ID_BUTTON + 1), (HINSTANCE)GetWindowLong(hDlg, GWL_HINSTANCE),
+            NULL);
+
+        return 0;
+    }
+
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hDlg, &ps);
+        RECT sizeWnd;
+
+        GetClientRect(hDlg, &sizeWnd);
+        Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
+        EndPaint(hDlg, &ps);
+        return 0;
+    }
+
+    case WM_SIZE:
+    {
+        InvalidateRect(hDlg, NULL, true);
+        return 0;
+    }
+
+    case WM_DESTROY:
+        if (hDlg == FindWindow(ClassName, MainWindow))
+            PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProc(hDlg, message, wParam, lParam);
 }
 
 LRESULT CALLBACK WndChildFax(HWND hChildFax, UINT message, WPARAM wParam, LPARAM lParam)
@@ -448,9 +467,11 @@ LRESULT CALLBACK WndChildFax1(HWND hChildFax1, UINT message, WPARAM wParam, LPAR
     }
 
     case WM_DESTROY:
+    {
         if (hChildFax1 == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
+    }
     }
     return DefWindowProc(hChildFax1, message, wParam, lParam);
 }
@@ -478,9 +499,11 @@ LRESULT CALLBACK WndChildFax2(HWND hChildFax2, UINT message, WPARAM wParam, LPAR
     }
 
     case WM_DESTROY:
+    {
         if (hChildFax2 == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
+    }
     }
     return DefWindowProc(hChildFax2, message, wParam, lParam);
 }
@@ -508,9 +531,11 @@ LRESULT CALLBACK WndChildFax3(HWND hChildFax3, UINT message, WPARAM wParam, LPAR
     }
 
     case WM_DESTROY:
+    {
         if (hChildFax3 == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
+    }
     }
     return DefWindowProc(hChildFax3, message, wParam, lParam);
 }
@@ -538,9 +563,11 @@ LRESULT CALLBACK WndChildWind(HWND hChildWind, UINT message, WPARAM wParam, LPAR
     }
 
     case WM_DESTROY:
+    {
         if (hChildWind == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
+    }
     }
     return DefWindowProc(hChildWind, message, wParam, lParam);
 }
@@ -568,9 +595,11 @@ LRESULT CALLBACK WndChildWind1(HWND hChildWind1, UINT message, WPARAM wParam, LP
     }
 
     case WM_DESTROY:
+    {
         if (hChildWind1 == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
+    }
     }
     return DefWindowProc(hChildWind1, message, wParam, lParam);
 }
@@ -598,9 +627,11 @@ LRESULT CALLBACK WndChildWind2(HWND hChildWind2, UINT message, WPARAM wParam, LP
     }
 
     case WM_DESTROY:
+    {
         if (hChildWind2 == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
+    }
     }
     return DefWindowProc(hChildWind2, message, wParam, lParam);
 }
@@ -628,9 +659,11 @@ LRESULT CALLBACK WndChildWind3(HWND hChildWind3, UINT message, WPARAM wParam, LP
     }
 
     case WM_DESTROY:
+    {
         if (hChildWind3 == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
+    }
     }
     return DefWindowProc(hChildWind3, message, wParam, lParam);
 }
@@ -782,8 +815,32 @@ void MainRead() {
         AbortProgram();
     }
 
+    // сбросим флажок завершения потока ввода данных
+    IsReadThreadComplete = false;
 
-} //
+    // Создаём и запускаем поток сбора данных
+    hReadThread = CreateThread(0, 0x2000, ServiceReadThread, (PVOID)hWnd, 0, NULL);//hWnd дескриптор главного окна
+    if (!hReadThread)
+    {
+        MessageBox(hWnd, "ServiceReadThread() --> Bad", "ERROR", NULL);
+        AbortProgram();
+    }
+
+    // ждём окончания работы потока ввода данных
+    WaitForSingleObject(hReadThread, INFINITE);
+
+    // проверим была ли ошибка выполнения потока сбора данных
+    if (ReadThreadErrorNumber)
+    {
+        AbortProgram(false);
+        ShowThreadErrorMessage();
+    }
+    else
+    {
+        AbortProgram(false);
+    }
+
+}
 
 
 //------------------------------------------------------------------------
@@ -834,7 +891,6 @@ DWORD WINAPI ServiceReadThread(PVOID Context)
         return 0x0;
     }
 
-    PostMessage(hwndMain, WM_USER + 100, 1, 0); //
 
     // запустим АЦП
     if (pModule->START_ADC())
@@ -854,16 +910,16 @@ DWORD WINAPI ServiceReadThread(PVOID Context)
                 break;
             }
 
-            // ждём завершения операции сбора предыдущей порции данных
-            if (WaitForSingleObject(ReadOv[RequestNumber ^ 0x1].hEvent, IoReq[RequestNumber ^ 0x1].TimeOut) == WAIT_TIMEOUT)
-            {
-                ReadThreadErrorNumber = 0x3;
-                break;
-            }
-            if (ReadThreadErrorNumber)
-            {
-                break;
-            }
+            //// ждём завершения операции сбора предыдущей порции данных
+            //if (WaitForSingleObject(ReadOv[RequestNumber ^ 0x1].hEvent, IoReq[RequestNumber ^ 0x1].TimeOut) == WAIT_TIMEOUT)
+            //{
+            //    ReadThreadErrorNumber = 0x3;
+            //    break;
+            //}
+            //if (ReadThreadErrorNumber)
+            //{
+            //    break;
+            //}
 
             // запишем полученную порцию данных в файл
             if (!WriteFile(hFile,													// handle to file to write to
@@ -884,7 +940,6 @@ DWORD WINAPI ServiceReadThread(PVOID Context)
             {
                 Sleep(20);
             }
-            Counter++;
         }
 
         // последняя порция данных
@@ -903,7 +958,6 @@ DWORD WINAPI ServiceReadThread(PVOID Context)
                 &FileBytesWritten,									// pointer to number of bytes written
                 NULL			  											// pointer to structure needed for overlapped I/O
             )) ReadThreadErrorNumber = 0x4;
-            Counter++;
         }
     }
     else
