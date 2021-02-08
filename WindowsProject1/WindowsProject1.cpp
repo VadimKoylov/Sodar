@@ -117,8 +117,6 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     if (hWnd == NULL)
         return 0;
 
-    ShowWindow(hWnd, nCmdShow);
-
     MSG msg;
 
     // Цикл основного сообщения:
@@ -240,11 +238,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         RECT sizeWnd;
         GetClientRect(hWnd, &sizeWnd);
 
+        //------------------------------------------------------------------------
         //создаем диалоговое окно
-        hDlg = CreateWindow(wcexDlg.lpszClassName, "", WS_OVERLAPPEDWINDOW, (GetSystemMetrics(SM_CXSCREEN) - 300) / 2,
+        //------------------------------------------------------------------------
+        hDlg = CreateWindow(wcexDlg.lpszClassName, "", WS_DLGFRAME | WS_SYSMENU, (GetSystemMetrics(SM_CXSCREEN) - 300) / 2,
             (GetSystemMetrics(SM_CYSCREEN) - 300) / 2, 300, 300, hWnd, NULL, hInst, NULL);
         
+        //------------------------------------------------------------------------
         //создаем окно для факс-записей, в которое добавляем 3 окна
+        //------------------------------------------------------------------------
         hChildFax = CreateWindow(wcexFax.lpszClassName, "", WS_CHILDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, sizeWnd.right,
             sizeWnd.bottom, hWnd, NULL, hInst, NULL);
 
@@ -254,7 +256,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         hChildFax3 = CreateWindow(wcexFax3.lpszClassName, "", WS_CHILDWINDOW, 0, 0, 0, 0, hChildFax, NULL, hInst, NULL);
 
+        //------------------------------------------------------------------------
         //создаем окно для ветра, в которое добавляем 3 окна
+        //------------------------------------------------------------------------
         hChildWind = CreateWindow(wcexWind.lpszClassName, "", WS_CHILDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, sizeWnd.right,
             sizeWnd.bottom, hWnd, NULL, hInst, NULL);
 
@@ -275,8 +279,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         ShowWindow(hChildWind3, SW_SHOW);
 
         EnableMenuItem(GetMenu(hWnd), IDM_FAX, MF_DISABLED);
-
-        MainRead();
 
         return 0;
     }
@@ -313,7 +315,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         GetClientRect(hWnd, &sizeWnd);
 
+        //------------------------------------------------------------------------
         //отрисовка окон в зависимости от нажатого пункта в меню
+        //------------------------------------------------------------------------
         if (GetWindowLong(hWnd, GWLP_USERDATA) == 0)
         {
             MoveWindow(hChildFax, 0, 0, (int)(sizeWnd.right), (int)(sizeWnd.bottom), true);
@@ -369,47 +373,79 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
-
+//------------------------------------------------------------------------
+//Функция для обработки диалогового окна
+//------------------------------------------------------------------------
 LRESULT CALLBACK WndDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
-
     case WM_CREATE:
     {
+        RECT sizeDlg;
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        GetWindowRect(hDlg, &sizeDlg);
+
         HWND hButtonOk = CreateWindow("button", "OK", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            20, 180, 80, 30, hDlg, (HMENU)(ID_BUTTON), (HINSTANCE)GetWindowLong(hDlg, GWL_HINSTANCE),
+            sizeDlg.right * 0.03, 180, 80, 30, hDlg, (HMENU)(ID_BUTTON), (HINSTANCE)GetWindowLong(hDlg, GWL_HINSTANCE),
             NULL);
 
         HWND hButtonCancel = CreateWindow("button", "Отмена", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            150, 180, 80, 30, hDlg, (HMENU)(ID_BUTTON + 1), (HINSTANCE)GetWindowLong(hDlg, GWL_HINSTANCE),
+            sizeDlg.right * 0.15, 180, 80, 30, hDlg, (HMENU)(ID_BUTTON + 1), (HINSTANCE)GetWindowLong(hDlg, GWL_HINSTANCE),
             NULL);
 
-        return 0;
-    }
+        char const* str = TEXT("Введите температуру");
 
-    case WM_PAINT:
-    {
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hDlg, &ps);
-        RECT sizeWnd;
+        TextOut(hdc, 100, 0, str, strlen(str));
 
-        GetClientRect(hDlg, &sizeWnd);
-        Rectangle(hdc, sizeWnd.left, sizeWnd.top, sizeWnd.right, sizeWnd.bottom);
         EndPaint(hDlg, &ps);
+
         return 0;
     }
 
-    case WM_SIZE:
+    //case WM_PAINT:
+    //{
+    //    RECT rc;
+    //    PAINTSTRUCT ps;
+    //    HDC hdc = BeginPaint(hWnd, &ps);
+
+    //    GetWindowRect(hDlg, &rc);
+
+    //    CONST char* str = TEXT("Введите температуру");
+
+    //    DrawText(hdc, str, strlen(str), &rc, DT_CENTER | DT_TOP);
+
+    //    EndPaint(hDlg, &ps);
+    //    return 0;
+    //}
+
+    case WM_COMMAND:
     {
-        InvalidateRect(hDlg, NULL, true);
-        return 0;
+        if (LOWORD(wParam == ID_BUTTON))
+        {
+            ShowWindow(hDlg, SW_HIDE);
+            MainRead();
+            ShowWindow(hWnd, SW_NORMAL);
+            DestroyWindow(hDlg);
+            SetWindowLong(hDlg, GWLP_USERDATA, 1);
+        }
+
+        else
+        {
+            PostMessage(hWnd, WM_DESTROY, 0, 0);
+        }
     }
 
-    case WM_DESTROY:
-        if (hDlg == FindWindow(ClassName, MainWindow))
+    case WM_CLOSE:
+    {
+        if (GetWindowLong(hDlg, GWLP_USERDATA) == 1)
+        {
             PostQuitMessage(0);
+        }
         return 0;
+    }
     }
     return DefWindowProc(hDlg, message, wParam, lParam);
 }
@@ -437,9 +473,11 @@ LRESULT CALLBACK WndChildFax(HWND hChildFax, UINT message, WPARAM wParam, LPARAM
     }
 
     case WM_DESTROY:
+    {
         if (hChildFax == FindWindow(ClassName, MainWindow))
             PostQuitMessage(0);
         return 0;
+    }
     }
     return DefWindowProc(hChildFax, message, wParam, lParam);
 }
@@ -667,7 +705,6 @@ LRESULT CALLBACK WndChildWind3(HWND hChildWind3, UINT message, WPARAM wParam, LP
     }
     return DefWindowProc(hChildWind3, message, wParam, lParam);
 }
-
 
 //------------------------------------------------------------------------
 // Главная функция для считывания файлов
