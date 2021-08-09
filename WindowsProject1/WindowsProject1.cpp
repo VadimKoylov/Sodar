@@ -30,6 +30,9 @@ LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
 
 LRESULT CALLBACK    WndDlg(HWND, UINT, WPARAM, LPARAM);
 
+TCHAR temperature[5] = "0";
+TCHAR height[4] = "0";
+
 LRESULT CALLBACK	WndChildFax(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK	WndChildFax1(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK	WndChildFax2(HWND, UINT, WPARAM, LPARAM);
@@ -41,7 +44,8 @@ LRESULT CALLBACK	WndChildWind2(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK	WndChildWind3(HWND, UINT, WPARAM, LPARAM);
 
 HWND hWnd;
-HWND hDlg;                                     //окно, использующееся как диалоговое
+//окно, использующееся как диалоговое
+HWND hDlg;
 HWND hChildFax, hChildFax1, hChildFax2, hChildFax3;
 HWND hChildWind, hChildWind1, hChildWind2, hChildWind3;
 
@@ -123,6 +127,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance,
     while (GetMessage(&msg, NULL, 0, 0))
     {
         DispatchMessage(&msg);
+        TranslateMessage(&msg);
     }
 
     return 0;
@@ -241,7 +246,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         //------------------------------------------------------------------------
         //создаем диалоговое окно
         //------------------------------------------------------------------------
-        hDlg = CreateWindow(wcexDlg.lpszClassName, "", WS_DLGFRAME | WS_SYSMENU, (GetSystemMetrics(SM_CXSCREEN) - 300) / 2,
+        hDlg = CreateWindow(wcexDlg.lpszClassName, "SODAR", WS_DLGFRAME, (GetSystemMetrics(SM_CXSCREEN) - 300) / 2,
             (GetSystemMetrics(SM_CYSCREEN) - 300) / 2, 300, 300, hWnd, NULL, hInst, NULL);
         
         //------------------------------------------------------------------------
@@ -362,6 +367,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         return 0;
     }
 
+    case WM_USER + 100:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hChildFax1, &ps);
+        RECT sizeWnd;
+
+        GetClientRect(hWnd, &sizeWnd);
+
+        return 0;
+    }
+
     case WM_DESTROY:
     {
         if (hWnd == FindWindow(ClassName, MainWindow))
@@ -378,73 +394,98 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 //------------------------------------------------------------------------
 LRESULT CALLBACK WndDlg(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    HWND hButtonOk, hButtonCancel;
+    static HWND hEdit1, hEdit2;
+
     switch (message)
     {
     case WM_CREATE:
     {
         RECT sizeDlg;
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hWnd, &ps);
 
         GetWindowRect(hDlg, &sizeDlg);
 
-        HWND hButtonOk = CreateWindow("button", "OK", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            sizeDlg.right * 0.03, 180, 80, 30, hDlg, (HMENU)(ID_BUTTON), (HINSTANCE)GetWindowLong(hDlg, GWL_HINSTANCE),
-            NULL);
+        hButtonOk = CreateWindow("button", "OK", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON,
+            sizeDlg.right * 0.03, 180, 80, 30, hDlg, (HMENU)(ID_BUTTONOK), hInst, NULL);
 
-        HWND hButtonCancel = CreateWindow("button", "Отмена", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-            sizeDlg.right * 0.15, 180, 80, 30, hDlg, (HMENU)(ID_BUTTON + 1), (HINSTANCE)GetWindowLong(hDlg, GWL_HINSTANCE),
-            NULL);
+        hButtonCancel = CreateWindow("button", "Отмена", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+            sizeDlg.right * 0.15, 180, 80, 30, hDlg, (HMENU)(ID_BUTTONCANCEL), hInst, NULL);
 
-        char const* str = TEXT("Введите температуру");
+        hEdit1 = CreateWindow("EDIT", "", WS_CHILD | WS_VISIBLE | ES_LEFT | WS_BORDER, 110, 50, 60, 30, hDlg, (HMENU)(ID_EDIT1), hInst, NULL);
 
-        TextOut(hdc, 100, 0, str, strlen(str));
-
-        EndPaint(hDlg, &ps);
+        hEdit2 = CreateWindow("edit", NULL, WS_CHILD | WS_VISIBLE | ES_LEFT | WS_BORDER, 110, 120, 60, 30, hDlg, (HMENU)(ID_EDIT2), hInst, NULL);
 
         return 0;
     }
 
-    //case WM_PAINT:
-    //{
-    //    RECT rc;
-    //    PAINTSTRUCT ps;
-    //    HDC hdc = BeginPaint(hWnd, &ps);
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hDlg, &ps);
+        CONST char* str = TEXT("Введите температуру");
+        TextOut(hdc, 70, 30, str, strlen(str));
 
-    //    GetWindowRect(hDlg, &rc);
+        str = TEXT("Введите высоту");
+        TextOut(hdc, 90, 100, str, strlen(str));
 
-    //    CONST char* str = TEXT("Введите температуру");
-
-    //    DrawText(hdc, str, strlen(str), &rc, DT_CENTER | DT_TOP);
-
-    //    EndPaint(hDlg, &ps);
-    //    return 0;
-    //}
+        EndPaint(hDlg, &ps);
+        return 0;
+    }
 
     case WM_COMMAND:
     {
-        if (LOWORD(wParam == ID_BUTTON))
+        switch (LOWORD(wParam))
         {
-            ShowWindow(hDlg, SW_HIDE);
-            MainRead();
-            ShowWindow(hWnd, SW_NORMAL);
-            DestroyWindow(hDlg);
-            SetWindowLong(hDlg, GWLP_USERDATA, 1);
+        case ID_BUTTONOK:
+        {
+            GetWindowText(hEdit1, temperature, 5);
+            GetWindowText(hEdit2, height, 4);
+
+            //------------------------------------------------------------------------
+            //Проверка на введенные символы
+            //------------------------------------------------------------------------
+            int counter = 0;
+
+            for (int i = 0; i < strlen(temperature); i++)
+            {
+                if ((temperature[i] < '0' || temperature[i] > '9') && temperature[0] != '-')
+                {
+                    counter++;
+                }
+            }
+
+            for (int i = 0; i < strlen(height); i++)
+            {
+                if (height[i] < '0' || height[i] > '9')
+                {
+                    counter++;
+                }
+            }
+
+            //------------------------------------------------------------------------
+            //Если строка не пустая и символы введены верно, запускаем основную часть программы
+            //------------------------------------------------------------------------
+            if (strlen(temperature) != 0 && strlen(height) != 0 && counter == 0)
+            {
+                ShowWindow(hDlg, SW_HIDE);
+                MainRead();
+                ShowWindow(hWnd, SW_NORMAL);
+                DestroyWindow(hDlg);
+            }
+            else
+            {
+                MessageBox(hDlg, "Введены некорректные данные", "Warning", 0);
+            }
+
+            return 0;
         }
 
-        else
-        {
-            PostMessage(hWnd, WM_DESTROY, 0, 0);
-        }
-    }
-
-    case WM_CLOSE:
-    {
-        if (GetWindowLong(hDlg, GWLP_USERDATA) == 1)
+        case ID_BUTTONCANCEL:
         {
             PostQuitMessage(0);
+            return 0;
         }
-        return 0;
+        }
     }
     }
     return DefWindowProc(hDlg, message, wParam, lParam);
@@ -802,12 +843,6 @@ void MainRead() {
         AbortProgram();
     }
 
-    // получим текущие параметры работы АЦП
-    if (!pModule->GET_ADC_PARS(&ap))
-    {
-        AbortProgram();
-    }
-
     // установим желаемые параметры работы АЦП
     ap.IsCorrectionEnabled = TRUE;			// разрешим корректировку данных на уровне драйвера DSP
     ap.InputMode = NO_SYNC_E440;				// обычный сбор данных безо всякой синхронизации ввода
@@ -879,7 +914,6 @@ void MainRead() {
 
 }
 
-
 //------------------------------------------------------------------------
 // Поток, в котором осуществляется сбор данных
 //------------------------------------------------------------------------
@@ -946,17 +980,6 @@ DWORD WINAPI ServiceReadThread(PVOID Context)
             {
                 break;
             }
-
-            //// ждём завершения операции сбора предыдущей порции данных
-            //if (WaitForSingleObject(ReadOv[RequestNumber ^ 0x1].hEvent, IoReq[RequestNumber ^ 0x1].TimeOut) == WAIT_TIMEOUT)
-            //{
-            //    ReadThreadErrorNumber = 0x3;
-            //    break;
-            //}
-            //if (ReadThreadErrorNumber)
-            //{
-            //    break;
-            //}
 
             // запишем полученную порцию данных в файл
             if (!WriteFile(hFile,													// handle to file to write to

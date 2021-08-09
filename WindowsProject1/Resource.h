@@ -20,7 +20,10 @@
 #define IDM_FAX                         32775
 #define IDC_STATIC                      -1
 
-#define ID_BUTTON						100
+#define ID_BUTTONOK						160
+#define ID_BUTTONCANCEL					161
+#define ID_EDIT1						162
+#define ID_EDIT2						163
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
